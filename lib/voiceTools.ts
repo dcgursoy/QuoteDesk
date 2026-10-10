@@ -20,7 +20,7 @@ export const voiceTools: Tool[] = [
       {
         name: "record_answers",
         description:
-          "Save only the quote details the buyer explicitly stated in this turn.",
+          "Save only quote details explicitly selected by the buyer or clearly confirmed from their own earlier statements. Never select engineering specifications, infer choices from a project description, or save agent recommendations or defaults.",
         behavior: Behavior.BLOCKING,
         parameters: {
           type: Type.OBJECT,

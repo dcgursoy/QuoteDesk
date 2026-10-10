@@ -1,7 +1,7 @@
 // scripts/extract.ts
 // Runs the extraction once from the terminal and prints the result.
 // Run it with
-//   npx tsx --env-file=.env.local scripts/extract.ts
+//   npm run test:extract
 
 import { readFileSync } from 'node:fs';
 import { DEMO_EMAIL } from '../lib/demo';
@@ -42,7 +42,7 @@ async function main() {
   if (failures === 0) {
     console.log('All 10 fields match the expected result.');
   } else {
-    console.log(failures + ' field(s) do not match. Read the troubleshooting section.');
+    console.log(failures + ' field(s) do not match. Compare the printed values and evidence with fixtures/quote.clarifying.json.');
     process.exit(1);
   }
 }
