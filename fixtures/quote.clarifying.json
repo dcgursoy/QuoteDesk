@@ -1,0 +1,24 @@
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "join_token": "demo-token",
+  "status": "clarifying",
+  "email_text": "Subject: RFQ for mounting bracket QD-1001\n\nHi,\n\nPlease quote the attached mounting bracket, part QD-1001 rev B.\nSend pricing with your lead time options. Ship to our Philadelphia facility.\n\nThanks,\nDana Reyes\nLarkfield Robotics",
+  "spec": {
+    "partNumber": { "value": "QD-1001", "status": "extracted", "source": "drawing", "evidence": "PART NO: QD-1001" },
+    "revision": { "value": "B", "status": "extracted", "source": "drawing", "evidence": "REV: B" },
+    "lengthMm": { "value": 120, "status": "extracted", "source": "drawing", "evidence": "120" },
+    "widthMm": { "value": 60, "status": "extracted", "source": "drawing", "evidence": "60" },
+    "thicknessMm": { "value": 8, "status": "extracted", "source": "drawing", "evidence": "THICKNESS 8" },
+    "holeCount": { "value": 4, "status": "extracted", "source": "drawing", "evidence": "4X Ø6.6 THRU" },
+    "generalToleranceMm": { "value": 0.1, "status": "extracted", "source": "drawing", "evidence": "GENERAL TOLERANCE ±0.1" },
+    "materialGrade": { "value": null, "status": "missing", "source": null },
+    "quantity": { "value": null, "status": "missing", "source": null },
+    "finish": { "value": null, "status": "missing", "source": null }
+  },
+  "missing": ["materialGrade", "quantity", "finish"],
+  "options": null,
+  "version": 0,
+  "intake_at": "2026-10-10T14:00:00.000Z",
+  "quoted_at": null,
+  "approved_at": null
+}
