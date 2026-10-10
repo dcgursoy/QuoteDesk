@@ -8,14 +8,6 @@ import Link from "next/link";
 type Props = { quoteId: string; joinToken: string };
 type Status = "ready" | "connecting" | "listening" | "ended" | "error";
 
-const fakeAnswerResult = {
-  accepted: {},
-  rejected: [],
-  missing: ["materialGrade", "quantity", "finish"],
-  status: "clarifying",
-  options: null,
-};
-
 export default function CallClient({ quoteId, joinToken }: Props) {
   const [status, setStatus] = useState<Status>("ready");
   const [error, setError] = useState("");
@@ -96,27 +88,44 @@ export default function CallClient({ quoteId, joinToken }: Props) {
         config: { responseModalities: [Modality.AUDIO] },
         callbacks: {
           onopen: () => log("Gemini Live connected."),
-          onmessage: (message) => {
+          onmessage: async (message) => {
             if (message.serverContent?.interrupted) player.clear();
             for (const part of message.serverContent?.modelTurn?.parts ?? []) {
               if (part.inlineData?.data) player.enqueue(part.inlineData.data);
             }
             if (message.toolCall?.functionCalls?.length) {
-              const functionResponses = message.toolCall.functionCalls.map(
-                (call) => {
+              const functionResponses = [];
+              for (const call of message.toolCall.functionCalls) {
                   log(`TOOL ${call.name}: ${JSON.stringify(call.args)}`);
-                  return {
+                  const callId = call.id || crypto.randomUUID();
+                  let result: Record<string, unknown>;
+                  try {
+                    let response: Response | undefined;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                      response = await fetch(`/api/quotes/${quoteId}/answers`, {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ joinToken, callId, tool: call.name, args: call.args ?? {} }),
+                      });
+                      if (response.status !== 409) break;
+                      await new Promise(resolve => setTimeout(resolve, 400));
+                    }
+                    result = await response!.json();
+                    if (!response!.ok) throw new Error(String(result.error || "Answer could not be saved"));
+                    log(`SAVED ${JSON.stringify(result)}`);
+                  } catch (caught) {
+                    const detail = caught instanceof Error ? caught.message : "Answer could not be saved";
+                    setError(detail);
+                    log(`SAVE ERROR ${detail}`);
+                    result = { error: detail, saved: false, instruction: "Do not claim this answer was saved or invent prices. Ask the buyer to retry." };
+                  }
+                  functionResponses.push({
                     id: call.id,
                     name: call.name,
-                    response: {
-                      ...fakeAnswerResult,
-                      accepted:
-                        call.name === "record_answers" ? call.args ?? {} : {},
-                    },
-                  };
-                },
-              );
-              session.sendToolResponse({ functionResponses });
+                    response: result,
+                  });
+              }
+              if (sessionRef.current === session) session.sendToolResponse({ functionResponses });
             }
           },
           onerror: (event) => {
