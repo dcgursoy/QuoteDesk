@@ -8,12 +8,58 @@ import Link from "next/link";
 type Props = { quoteId: string; joinToken: string };
 type Status = "ready" | "connecting" | "listening" | "ended" | "error";
 
+// One entry in the readable conversation.
+// "note" and "problem" are short messages about what the server saved.
+type Line = {
+  speaker: "assistant" | "buyer" | "note" | "problem";
+  text: string;
+  done: boolean; // false while more words may still arrive for this line
+};
+
+const valueNames: Record<string, string> = {
+  AL6061: "6061 aluminum",
+  AL7075: "7075 aluminum",
+  SS304: "304 stainless steel",
+  AS_MACHINED: "as machined",
+  ANODIZE_CLEAR: "clear anodize",
+  ANODIZE_BLACK: "black anodize",
+};
+
+// Turns the saved result from the server into short sentences a person can read.
+function describeResult(result: Record<string, unknown>): string[] {
+  const notes: string[] = [];
+  const accepted = (result.accepted ?? {}) as Record<string, string | number>;
+
+  const saved: string[] = [];
+  if (accepted.materialGrade !== undefined) {
+    saved.push(valueNames[String(accepted.materialGrade)] ?? String(accepted.materialGrade));
+  }
+  if (accepted.quantity !== undefined) {
+    saved.push(`${accepted.quantity} ${Number(accepted.quantity) === 1 ? "piece" : "pieces"}`);
+  }
+  if (accepted.finish !== undefined) {
+    saved.push(valueNames[String(accepted.finish)] ?? String(accepted.finish));
+  }
+  if (saved.length > 0) notes.push(`Saved to the quote: ${saved.join(", ")}`);
+
+  const rejected = (result.rejected ?? []) as { field: string; reason: string }[];
+  for (const item of rejected) notes.push(`Not saved: ${item.reason}`);
+
+  if (result.priceRequest) notes.push("Price request passed to the estimator for review");
+  if (result.status === "quoted" && saved.length > 0) {
+    notes.push("All details are in. The quote is priced.");
+  }
+  return notes;
+}
+
 export default function CallClient({ quoteId, joinToken }: Props) {
   const [status, setStatus] = useState<Status>("ready");
   const [error, setError] = useState("");
   const [typedAnswer, setTypedAnswer] = useState("");
   const [textOnly, setTextOnly] = useState(false);
   const [logs, setLogs] = useState<string[]>(["Ready. Tap Start call."]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const conversationRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const microphoneRef = useRef<MicrophoneCapture | null>(null);
   const playerRef = useRef<PcmPlayer | null>(null);
@@ -24,6 +70,42 @@ export default function CallClient({ quoteId, joinToken }: Props) {
       `${new Date().toLocaleTimeString()}  ${message}`,
     ]);
   }, []);
+
+  // Speech arrives a few words at a time. Join each piece onto the line that
+  // speaker is still saying, or start a new line for them.
+  const addSpeech = useCallback((speaker: "assistant" | "buyer", piece: string) => {
+    if (!piece) return;
+    setLines((current) => {
+      for (let i = current.length - 1; i >= 0; i -= 1) {
+        if (current[i].speaker === speaker && !current[i].done) {
+          const next = [...current];
+          next[i] = { ...current[i], text: current[i].text + piece };
+          return next;
+        }
+      }
+      return [...current, { speaker, text: piece.trimStart(), done: false }];
+    });
+  }, []);
+
+  // Adds a finished line, such as a typed answer or a note about a save.
+  const addLine = useCallback((speaker: Line["speaker"], text: string) => {
+    setLines((current) => [...current, { speaker, text, done: true }]);
+  }, []);
+
+  // Called when a turn ends, so the next words start a new line.
+  const finishLines = useCallback(() => {
+    setLines((current) =>
+      current.some((line) => !line.done)
+        ? current.map((line) => (line.done ? line : { ...line, done: true }))
+        : current,
+    );
+  }, []);
+
+  // Keep the newest line in view.
+  useEffect(() => {
+    const box = conversationRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, [lines]);
 
   const stop = useCallback(async () => {
     const session = sessionRef.current;
@@ -58,6 +140,7 @@ export default function CallClient({ quoteId, joinToken }: Props) {
   async function start(useTextOnly = false) {
     if (status === "connecting" || status === "listening") return;
     setError("");
+    setLines([]);
     setTextOnly(useTextOnly);
     setStatus("connecting");
     log("Requesting microphone and a short-lived token...");
@@ -93,6 +176,12 @@ export default function CallClient({ quoteId, joinToken }: Props) {
             for (const part of message.serverContent?.modelTurn?.parts ?? []) {
               if (part.inlineData?.data) player.enqueue(part.inlineData.data);
             }
+            // Gemini also sends the words of both speakers as text.
+            addSpeech("buyer", message.serverContent?.inputTranscription?.text ?? "");
+            addSpeech("assistant", message.serverContent?.outputTranscription?.text ?? "");
+            if (message.serverContent?.turnComplete || message.serverContent?.interrupted) {
+              finishLines();
+            }
             if (message.toolCall?.functionCalls?.length) {
               const functionResponses = [];
               for (const call of message.toolCall.functionCalls) {
@@ -113,10 +202,14 @@ export default function CallClient({ quoteId, joinToken }: Props) {
                     result = await response!.json();
                     if (!response!.ok) throw new Error(String(result.error || "Answer could not be saved"));
                     log(`SAVED ${JSON.stringify(result)}`);
+                    for (const note of describeResult(result)) {
+                      addLine(note.startsWith("Not saved") ? "problem" : "note", note);
+                    }
                   } catch (caught) {
                     const detail = caught instanceof Error ? caught.message : "Answer could not be saved";
                     setError(detail);
                     log(`SAVE ERROR ${detail}`);
+                    addLine("problem", `Not saved: ${detail}`);
                     result = { error: detail, saved: false, instruction: "Do not claim this answer was saved or invent prices. Ask the buyer to retry." };
                   }
                   functionResponses.push({
@@ -192,6 +285,8 @@ export default function CallClient({ quoteId, joinToken }: Props) {
         turnComplete: true,
       });
       log(`BUYER (typed): ${text}`);
+      finishLines();
+      addLine("buyer", text);
       setTypedAnswer("");
     } catch {
       setError("Your answer could not be sent. Restart the call and try again.");
@@ -254,7 +349,26 @@ export default function CallClient({ quoteId, joinToken }: Props) {
           </button>
         </div>
 
-        </div><form
+        </div>
+        <div className="conversation" ref={conversationRef} aria-live="polite">
+          {lines.length === 0 ? (
+            <p className="field-help">The conversation appears here once the call starts.</p>
+          ) : (
+            lines.map((line, index) =>
+              line.speaker === "note" || line.speaker === "problem" ? (
+                <p className={`conversation-note ${line.speaker === "problem" ? "problem" : ""}`} key={index}>
+                  {line.text}
+                </p>
+              ) : (
+                <div className={`conversation-line ${line.speaker}`} key={index}>
+                  <span className="conversation-speaker">{line.speaker === "assistant" ? "Quote Desk" : "You"}</span>
+                  <p>{line.text}</p>
+                </div>
+              ),
+            )
+          )}
+        </div>
+        <form
           className="answer-form"
           onSubmit={(event) => {
             event.preventDefault();

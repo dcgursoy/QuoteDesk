@@ -25,6 +25,24 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
   const [connectionError, setConnectionError] = useState(false);
   const [approving, setApproving] = useState(false);
   const [approvalError, setApprovalError] = useState("");
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  // Puts this quote back to the moment right after intake, ready for the next demo run.
+  // It keeps what was read from the email and drawing and clears what the buyer said.
+  async function resetQuote() {
+    setResetting(true);
+    setResetError("");
+    try {
+      const response = await fetch(`/api/quotes/${row.id}/reset`, { method: "POST" });
+      const next = await response.json();
+      if (!response.ok) throw new Error(next.error || "Reset failed");
+      setRow({ ...next, priceRequests: [] });
+      setConfirmReset(false);
+    } catch (error) { setResetError(error instanceof Error ? error.message : "Reset failed"); }
+    finally { setResetting(false); }
+  }
 
   async function approve() {
     setApproving(true);
@@ -89,7 +107,7 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
           {(Object.keys(labels) as (keyof QuoteSpec)[]).map(key => {
             const field = row.spec[key];
             const display = field.value === null ? "Needs buyer answer" : names[String(field.value)] || `${field.value}${key.endsWith("Mm") ? " mm" : ""}`;
-            return <div className="spec-row" key={key}><span>{labels[key]}</span><div><span className={`spec-value ${field.value === null ? "missing-value" : ""}`}>{display}</span>{field.note && <p className="field-help text-amber-800">{field.note}</p>}</div><span className="spec-source" title={field.evidence}>{field.status === "missing" ? "Missing" : field.source === "buyer_call" ? "Buyer confirmed" : "Extracted"}</span></div>;
+            return <div className="spec-row" key={key}><span>{labels[key]}</span><div><span className={`spec-value ${field.value === null ? "missing-value" : ""}`}>{display}</span>{field.note && <p className="field-help text-amber-800">{field.note}</p>}{field.evidence && field.source !== "buyer_call" && <p className="field-help">Read from the {field.source === "email" ? "email" : "drawing"}: “{field.evidence}”</p>}</div><span className="spec-source" title={field.evidence}>{field.status === "missing" ? "Missing" : field.source === "buyer_call" ? "Buyer confirmed" : "Extracted"}</span></div>;
           })}
         </section>
         <section className="panel"><div className="panel-heading"><h2>Price & delivery options</h2><span className="overline">03 / REVIEW</span></div>
@@ -109,7 +127,16 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
         </section>
         <details className="panel"><summary className="panel-heading cursor-pointer font-semibold text-sm">Original buyer request</summary><div className="panel-content email-preview">{row.email_text}</div></details>
       </div>
-      <aside className="stack"><BuyerInvite callUrl={callUrl} /><section className="panel"><div className="panel-content"><p className="overline">INTAKE TO DRAFT</p><p className="timer mt-3">{Math.floor(elapsed / 60).toString().padStart(2,"0")}:{(elapsed % 60).toFixed(1).padStart(4,"0")}</p><p className="field-help mt-2">{row.quoted_at ? "Stopped when the draft was priced." : "Elapsed time since this request arrived."}</p></div></section><section className="panel"><div className="panel-heading"><h2>Buyer’s drawing</h2><a className="field-help underline" href="/demo/bracket.pdf" target="_blank" rel="noreferrer">Open ↗</a></div><div className="panel-content field-help">Demo bracket reference · PDF<br />QD-1001 / revision B</div></section></aside>
+      <aside className="stack"><BuyerInvite callUrl={callUrl} /><section className="panel"><div className="panel-content"><p className="overline">INTAKE TO DRAFT</p><p className="timer mt-3">{Math.floor(elapsed / 60).toString().padStart(2,"0")}:{(elapsed % 60).toFixed(1).padStart(4,"0")}</p><p className="field-help mt-2">{row.quoted_at ? "Stopped when the draft was priced." : "Elapsed time since this request arrived."}</p></div></section><section className="panel"><div className="panel-heading"><h2>Buyer’s drawing</h2><a className="field-help underline" href="/demo/bracket.pdf" target="_blank" rel="noreferrer">Open ↗</a></div><div className="panel-content field-help">Demo bracket reference · PDF<br />QD-1001 / revision B</div></section>
+        <div className="flex flex-wrap items-center gap-2">
+          {confirmReset ? <>
+            <span className="field-help basis-full">Clear the buyer&apos;s answers and prices on this quote?</span>
+            <button className="secondary-button" disabled={resetting} onClick={() => void resetQuote()}>{resetting ? "Resetting…" : "Yes, reset"}</button>
+            <button className="secondary-button" disabled={resetting} onClick={() => setConfirmReset(false)}>Cancel</button>
+          </> : <button className="secondary-button" onClick={() => setConfirmReset(true)}>Reset for the next demo</button>}
+          {resetError && <p className="field-help basis-full" role="alert">{resetError}</p>}
+        </div>
+      </aside>
     </div>
   </main>;
 }
