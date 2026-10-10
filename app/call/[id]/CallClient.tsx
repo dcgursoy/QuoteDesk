@@ -3,6 +3,7 @@
 import { GoogleGenAI, Modality, type Session } from "@google/genai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MicrophoneCapture, PcmPlayer } from "@/lib/audio";
+import Link from "next/link";
 
 type Props = { quoteId: string; joinToken: string };
 type Status = "ready" | "connecting" | "listening" | "ended" | "error";
@@ -197,31 +198,30 @@ export default function CallClient({ quoteId, joinToken }: Props) {
   }[status];
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 p-6 text-zinc-950">
-      <section className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-7 shadow-xl sm:p-12">
-        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
-          Quote Desk · BRKT-104 Rev B
+    <main className="call-shell"><header className="desk-header"><Link className="wordmark" href="/">Quote<span>Desk</span><i /></Link><span className="header-note">BUYER CALL</span></header>
+      <section className="panel call-card"><div className="call-intro">
+        <p className="overline">
+          A FEW DETAILS TO FINISH YOUR QUOTE
         </p>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Answer three quote questions.
+        <h1 className="">
+          Let’s clarify your request.
         </h1>
-        <p className="mt-5 text-lg leading-8 text-zinc-600">
-          Try: “6061 aluminum, 50 pieces, clear anodize.” Watch the log for a
-          structured <code>record_answers</code> call.
+        <p className="subheading">
+          Talk with our assistant about material, quantity, and finish. You can also type your answers below.
         </p>
 
-        <div className="my-6 flex items-center gap-3 rounded-2xl bg-zinc-100 px-4 py-4 font-semibold">
+        <div className="call-status">
           <span
-            className={`h-3 w-3 rounded-full ${status === "listening" ? "bg-emerald-500 shadow-[0_0_0_6px_rgba(16,185,129,0.15)]" : "bg-zinc-400"}`}
+            className={`status-dot ${status === "listening" ? "live" : ""}`}
           />
           {statusText}
         </div>
 
         {error ? <p className="mb-5 text-red-700">{error}</p> : null}
 
-        <div className="flex flex-wrap gap-3">
+        <div className="call-actions">
           <button
-            className="min-h-13 rounded-full bg-emerald-700 px-6 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="primary-button"
             onClick={() => void start()}
             disabled={status === "connecting" || status === "listening"}
           >
@@ -230,14 +230,14 @@ export default function CallClient({ quoteId, joinToken }: Props) {
               : "Start call"}
           </button>
           <button
-            className="min-h-13 rounded-full bg-zinc-200 px-6 font-bold disabled:opacity-50"
+            className="secondary-button"
             onClick={() => void start(true)}
             disabled={status === "connecting" || status === "listening"}
           >
             Start with typing
           </button>
           <button
-            className="min-h-13 rounded-full bg-zinc-200 px-6 font-bold disabled:cursor-not-allowed disabled:opacity-50"
+            className="secondary-button"
             onClick={() => void stop()}
             disabled={status !== "listening"}
           >
@@ -245,26 +245,26 @@ export default function CallClient({ quoteId, joinToken }: Props) {
           </button>
         </div>
 
-        <form
-          className="mt-6"
+        </div><form
+          className="answer-form"
           onSubmit={(event) => {
             event.preventDefault();
             sendTypedAnswer();
           }}
         >
-          <label htmlFor="buyer-answer" className="block font-semibold">
+          <label htmlFor="buyer-answer" className="field-label">
             Or type your answer
           </label>
-          <p id="answer-help" className="mt-1 text-sm text-zinc-600">
+          <p id="answer-help" className="field-help">
             {status === "listening"
               ? "Gemini will reply aloud and process this just like a spoken answer."
               : "Start a call or choose Start with typing first."}
           </p>
-          <div className="mt-3 flex gap-2">
+          <div className="answer-controls">
             <input
               id="buyer-answer"
               aria-describedby="answer-help"
-              className="min-w-0 flex-1 rounded-xl border border-zinc-300 px-3 py-3 disabled:bg-zinc-100"
+              className="desk-input"
               value={typedAnswer}
               onChange={(event) => setTypedAnswer(event.target.value)}
               placeholder="Actually, make that 75 pieces"
@@ -272,7 +272,7 @@ export default function CallClient({ quoteId, joinToken }: Props) {
             />
             <button
               type="submit"
-              className="rounded-xl bg-emerald-700 px-5 font-bold text-white disabled:opacity-50"
+              className="primary-button"
               disabled={status !== "listening" || !typedAnswer.trim()}
             >
               Send
@@ -280,13 +280,7 @@ export default function CallClient({ quoteId, joinToken }: Props) {
           </div>
         </form>
 
-        <div
-          className="mt-6 min-h-40 max-h-64 overflow-auto whitespace-pre-wrap rounded-2xl bg-zinc-950 p-4 font-mono text-xs leading-6 text-emerald-200"
-          aria-live="polite"
-        >
-          {logs.join("\n")}
-        </div>
-      </section>
+      </section><details className="debug-panel"><summary>Connection details</summary><div className="debug-log" aria-live="polite">{logs.join("\n")}</div></details>
     </main>
   );
 }
