@@ -4,6 +4,20 @@ export const voiceTools: Tool[] = [
   {
     functionDeclarations: [
       {
+        name: "note_price_request",
+        description: "Record a buyer's request for a lower price or budget for vendor review. Never accept or promise a discount.",
+        behavior: Behavior.BLOCKING,
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            heard: { type: Type.STRING, description: "The buyer's exact price request." },
+            requestedAmountCents: { type: Type.INTEGER, minimum: 1, description: "Explicit USD target in cents, only when the amount and basis are clear." },
+            basis: { type: Type.STRING, enum: ["total", "per_part"], description: "Whether the target is for the whole order or each part." },
+          },
+          required: ["heard"],
+        },
+      },
+      {
         name: "record_answers",
         description:
           "Save only the quote details the buyer explicitly stated in this turn.",

@@ -1,6 +1,6 @@
 // lib/supabaseServer.ts
 import { createClient } from '@supabase/supabase-js';
-import type { QuoteRow } from './types';
+import type { BuyerPriceRequest, QuoteRow } from './types';
 
 // Server code only. This uses the secret key, which can read and write
 // everything. Never import this file from a component that runs in the browser.
@@ -25,3 +25,16 @@ export async function getQuote(id: string): Promise<QuoteRow | null> {
 }
 
 export const createServerSupabase = getSupabaseServer;
+
+export async function getQuoteWithPriceRequests(id: string): Promise<QuoteRow | null> {
+  const row = await getQuote(id);
+  if (!row) return null;
+  const { data, error } = await getSupabaseServer().from('quote_events').select('payload').eq('quote_id', id);
+  if (error) throw new Error('Could not load buyer price requests');
+  const priceRequests: BuyerPriceRequest[] = (data || []).flatMap(event => {
+    const request = event.payload?.result?.priceRequest;
+    return !event.payload?.pending && request ? [request] : [];
+  });
+  priceRequests.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+  return { ...row, priceRequests };
+}

@@ -41,8 +41,19 @@ export interface PriceOption {
   totalCents: number;
 }
 
+export interface BuyerPriceRequest {
+  heard: string;
+  requestedAmountCents: number | null;
+  basis: 'total' | 'per_part' | null;
+  lowestOfferedCents: number | null;
+  belowLowest: boolean | null;
+  recordedAt: string;
+}
+
 // One row of the quotes table in Supabase.
 export interface QuoteRow {
+  // Loaded from quote_events; not a quotes table column.
+  priceRequests?: BuyerPriceRequest[];
   id: string;
   join_token: string;
   status: QuoteStatus;
@@ -58,6 +69,7 @@ export interface QuoteRow {
 
 // What the answers route sends back to the voice agent.
 export interface AnswerResult {
+  priceRequest?: BuyerPriceRequest;
   accepted: Partial<Record<(typeof BUYER_FIELDS)[number], string | number>>;
   rejected: { field: string; reason: string; allowed: string[] }[];
   missing: string[];

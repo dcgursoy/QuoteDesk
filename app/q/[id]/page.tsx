@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getQuote } from "@/lib/supabaseServer";
+import { getQuoteWithPriceRequests } from "@/lib/supabaseServer";
 import QuoteWorkspace from "@/components/QuoteWorkspace";
 
 export default async function QuotePage({ params, searchParams }: {
@@ -7,7 +7,7 @@ export default async function QuotePage({ params, searchParams }: {
   searchParams: Promise<{ cached?: string }>;
 }) {
   const { id } = await params;
-  const row = await getQuote(id);
+  const row = await getQuoteWithPriceRequests(id);
   if (!row) notFound();
   const { cached } = await searchParams;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
