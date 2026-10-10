@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>QD-1001 mounting bracket</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  body { margin: 0; }
+  svg { width: 100%; height: auto; }
+  text { font-family: Arial, Helvetica, sans-serif; font-size: 14px; }
+  .line { stroke: black; stroke-width: 1; fill: none; }
+  .part { stroke: black; stroke-width: 2.5; fill: none; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg">
+  <!-- sheet border -->
+  <rect class="line" x="10" y="10" width="780" height="520"/>
+
+  <!-- the plate, drawn at 4 units per millimeter -->
+  <rect class="part" x="160" y="120" width="480" height="240"/>
+  <circle class="part" cx="200" cy="160" r="13"/>
+  <circle class="part" cx="600" cy="160" r="13"/>
+  <circle class="part" cx="200" cy="320" r="13"/>
+  <circle class="part" cx="600" cy="320" r="13"/>
+
+  <!-- length dimension -->
+  <line class="line" x1="160" y1="85" x2="640" y2="85"/>
+  <line class="line" x1="160" y1="75" x2="160" y2="112"/>
+  <line class="line" x1="640" y1="75" x2="640" y2="112"/>
+  <text x="400" y="78" text-anchor="middle">120</text>
+
+  <!-- width dimension -->
+  <line class="line" x1="125" y1="120" x2="125" y2="360"/>
+  <line class="line" x1="115" y1="120" x2="152" y2="120"/>
+  <line class="line" x1="115" y1="360" x2="152" y2="360"/>
+  <text x="108" y="245" text-anchor="end">60</text>
+
+  <!-- hole callout -->
+  <line class="line" x1="610" y1="150" x2="660" y2="110"/>
+  <text x="664" y="106">4X Ø6.6 THRU</text>
+
+  <!-- notes -->
+  <text x="30" y="420" font-weight="bold">NOTES</text>
+  <text x="30" y="442">1. THICKNESS 8.</text>
+  <text x="30" y="464">2. HOLE CENTERS 10 FROM EACH EDGE.</text>
+  <text x="30" y="486">3. ALL DIMENSIONS IN MM. GENERAL TOLERANCE ±0.1.</text>
+  <text x="30" y="508">4. BREAK ALL EDGES 0.5 MAX.</text>
+
+  <!-- title block -->
+  <rect class="line" x="470" y="400" width="320" height="130"/>
+  <line class="line" x1="470" y1="432" x2="790" y2="432"/>
+  <line class="line" x1="470" y1="464" x2="790" y2="464"/>
+  <line class="line" x1="470" y1="496" x2="790" y2="496"/>
+  <text x="480" y="421">TITLE: MOUNTING BRACKET</text>
+  <text x="480" y="453">PART NO: QD-1001     REV: B</text>
+  <text x="480" y="485">MATERIAL: SEE RFQ</text>
+  <text x="480" y="517">FINISH: SEE RFQ</text>
+</svg>
+</body>
+</html>
