@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/test-answers.ts && tsx scripts/test-voice-prompt.ts",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "test:integration": "node --env-file=.env.local --import tsx scripts/test-answers-integration.ts",
+    "test:extract": "node --env-file=.env.local --import tsx scripts/extract.ts",
+    "db:check": "node --env-file=.env.local --import tsx scripts/dbCheck.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

@@ -4,7 +4,7 @@
 
 The buyer's voice or typed answer now changes the actual quote, rather than only appearing in a conversation log.
 
-1. Gemini Live understands the buyer and requests a tool action (`record_answers` or `note_unsupported`).
+1. Gemini Live understands the buyer and requests a tool action (`record_answers`, `note_unsupported`, or `note_price_request`). It explains terminology neutrally, but does not recommend engineering specifications or choose for the buyer.
 2. The call page sends that action to our answer-saving endpoint. An endpoint is simply a server URL that receives a request and does work.
 3. Our server verifies the buyer's link and checks the answers against rules. Gemini does not get to choose arbitrary materials, change the drawing dimensions, or invent prices.
 4. Supabase stores the updated specification and an event recording the tool request and result. Repeating a completed tool call returns its existing result instead of applying it twice.
@@ -12,6 +12,16 @@ The buyer's voice or typed answer now changes the actual quote, rather than only
 6. The estimator screen watches Supabase updates, with a two-second refresh fallback. The estimator can approve the provisional quote. A later correction clears approval and requires review again.
 
 ## Demo script
+
+For the simple company scenario, say: “I work at a company building desks. We need 25 brackets. Our engineer specified 6061 aluminum, but what does as-machined finish mean?” After the explanation, say “Use as-machined.” These are fictional buyer requirements, not a recommendation for desk construction.
+
+If asked to choose specifications, the agent should explain that the buyer's engineer or vendor must decide, leave undecided fields missing, and collect other known details. Its job is to move a manufacturing request forward, not act as a professional engineer.
+
+When the screen updates, say: “Those answers are validated and saved in Supabase, our database. It keeps the buyer conversation and vendor screen in sync, and stores a history of the buyer's answers and price requests.”
+
+If time allows, ask: “Can you do $100 total?” Point to the vendor-review note and explain that the request is saved without accepting a discount or changing calculated prices.
+
+### Predictable direct-answer fallback
 
 Say: “Gemini handles the conversation, Supabase stores the shared quote, and our code handles validation and pricing. The AI asks for missing information, but it cannot invent a manufacturing price. The estimator stays in control of approval.”
 
@@ -43,9 +53,9 @@ This is a browser conversation opened through the QR/link, not an outgoing telep
 
 ## Local checks and deployment
 
-Automated logic tests: `npx tsx scripts/test-answers.ts`.
+Automated local checks: `npm run check`.
 
-Integration test: `node --env-file=.env.local --import tsx scripts/test-answers-integration.ts`. Keep the local app running first. This creates and deletes only a temporary test quote in Supabase.
+Integration test: `npm run test:integration`. Keep the local app running first. This creates and deletes only a temporary test quote and its events in Supabase.
 
 Before the demo, push the `person_b` branch, merge the pull request into the team's deployment branch, and wait for Vercel to finish. Local success does not mean the public deployment has these changes. Then create a fresh quote on the public site and run the first-answer example once on the phone.
 
