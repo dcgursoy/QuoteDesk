@@ -1,4 +1,4 @@
-# QuoteDesk
+# QuoteDesk - Google DeepMind New Agentic Economy Hackathon 2026
 
 From an incomplete manufacturing request to a provisional quote, through a live buyer conversation.
 
