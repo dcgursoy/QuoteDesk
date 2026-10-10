@@ -23,3 +23,5 @@ export async function getQuote(id: string): Promise<QuoteRow | null> {
   }
   return data as QuoteRow | null;
 }
+
+export const createServerSupabase = getSupabaseServer;
