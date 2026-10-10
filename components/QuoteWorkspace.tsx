@@ -23,6 +23,23 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
   const [row, setRow] = useState(initialRow);
   const [elapsed, setElapsed] = useState(0);
   const [connectionError, setConnectionError] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approvalError, setApprovalError] = useState("");
+
+  async function approve() {
+    setApproving(true);
+    setApprovalError("");
+    try {
+      const response = await fetch(`/api/quotes/${row.id}/approve`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ joinToken: row.join_token, version: row.version }),
+      });
+      const next = await response.json();
+      if (!response.ok) throw new Error(next.error || "Approval failed");
+      setRow(current => next.version >= current.version ? next : current);
+    } catch (error) { setApprovalError(error instanceof Error ? error.message : "Approval failed"); }
+    finally { setApproving(false); }
+  }
 
   useEffect(() => {
     const id = initialRow.id;
@@ -78,6 +95,8 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
         <section className="panel"><div className="panel-heading"><h2>Price & delivery options</h2><span className="overline">03 / REVIEW</span></div>
           {row.options?.length ? <div className="price-grid">{row.options.map(option => <article className={`price-card ${option.id === "standard" ? "featured" : ""}`} key={option.id}><h3>{option.id}</h3><p className="price-total">{money(option.totalCents)}</p><p className="field-help">{money(option.unitCents)} / part</p><p className="mt-4 text-sm font-medium">{option.businessDays} business days</p></article>)}</div> : <div className="empty-state"><p className="font-medium text-[var(--foreground)]">Ready when the details are.</p><p>Pricing options will appear here after the buyer’s answers are validated and saved.</p></div>}
           <div className="panel-content border-t border-[var(--line)] field-help">{row.approved_at ? `Approved ${new Date(row.approved_at).toLocaleString()}` : "Prices are provisional until reviewed and approved by the estimator."}</div>
+          {row.status === "quoted" && <div className="panel-content"><button className="primary-button" disabled={approving} onClick={() => void approve()}>{approving ? "Approving…" : "Approve quote"}</button></div>}
+          {approvalError && <p className="panel-content notice error" role="alert">{approvalError}</p>}
         </section>
         <details className="panel"><summary className="panel-heading cursor-pointer font-semibold text-sm">Original buyer request</summary><div className="panel-content email-preview">{row.email_text}</div></details>
       </div>
