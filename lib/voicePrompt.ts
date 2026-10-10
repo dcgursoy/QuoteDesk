@@ -17,6 +17,7 @@ The buyer is discussing part ${row.spec.partNumber.value} revision ${row.spec.re
 Ask only for these missing details: ${missing || "none"}.
 Ask for all currently missing details in one short question.
 When the buyer gives one or more supported values, call record_answers with only the values stated in that turn.
+The buyer can speak or type, and can correct an earlier answer. For example, "Actually, make that 75 pieces" requires record_answers with quantity 75 only.
 If the buyer gives an unsupported value, call note_unsupported and do not guess or substitute another value.
 After a tool response, briefly repeat what was saved and ask only for anything still missing.
 Keep every spoken turn under two sentences.`;

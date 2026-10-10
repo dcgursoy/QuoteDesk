@@ -18,6 +18,8 @@ const fakeAnswerResult = {
 export default function CallClient({ quoteId, joinToken }: Props) {
   const [status, setStatus] = useState<Status>("ready");
   const [error, setError] = useState("");
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const [textOnly, setTextOnly] = useState(false);
   const [logs, setLogs] = useState<string[]>(["Ready. Tap Start call."]);
   const sessionRef = useRef<Session | null>(null);
   const microphoneRef = useRef<MicrophoneCapture | null>(null);
@@ -60,9 +62,10 @@ export default function CallClient({ quoteId, joinToken }: Props) {
     [],
   );
 
-  async function start() {
+  async function start(useTextOnly = false) {
     if (status === "connecting" || status === "listening") return;
     setError("");
+    setTextOnly(useTextOnly);
     setStatus("connecting");
     log("Requesting microphone and a short-lived token...");
 
@@ -132,16 +135,26 @@ export default function CallClient({ quoteId, joinToken }: Props) {
       });
 
       sessionRef.current = session;
-      await microphone.start((base64, sampleRate) => {
-        session.sendRealtimeInput({
-          audio: {
-            data: base64,
-            mimeType: `audio/pcm;rate=${sampleRate}`,
-          },
-        });
-      });
+      if (!useTextOnly) {
+        try {
+          await microphone.start((base64, sampleRate) => {
+            if (sessionRef.current !== session) return;
+            session.sendRealtimeInput({
+              audio: {
+                data: base64,
+                mimeType: `audio/pcm;rate=${sampleRate}`,
+              },
+            });
+          });
+        } catch {
+          await microphone.stop();
+          microphoneRef.current = null;
+          setTextOnly(true);
+          log("Microphone unavailable. Type your answers below; Gemini can still reply aloud.");
+        }
+      }
       setStatus("listening");
-      log("Microphone streaming. Say your material, quantity, and finish.");
+      log("Conversation ready. Speak or type your material, quantity, and finish.");
       session.sendRealtimeInput({
         text: "The buyer just joined. Greet them and ask for all missing quote details.",
       });
@@ -153,13 +166,32 @@ export default function CallClient({ quoteId, joinToken }: Props) {
       log(`ERROR ${message}`);
       await microphoneRef.current?.stop();
       await playerRef.current?.stop();
+      try { sessionRef.current?.close(); } catch { /* already closed */ }
+      sessionRef.current = null;
+    }
+  }
+
+  function sendTypedAnswer() {
+    const text = typedAnswer.trim();
+    const session = sessionRef.current;
+    if (!text || !session || status !== "listening") return;
+    try {
+      playerRef.current?.clear();
+      session.sendClientContent({
+        turns: [{ role: "user", parts: [{ text }] }],
+        turnComplete: true,
+      });
+      log(`BUYER (typed): ${text}`);
+      setTypedAnswer("");
+    } catch {
+      setError("Your answer could not be sent. Restart the call and try again.");
     }
   }
 
   const statusText = {
     ready: "Ready to start",
     connecting: "Connecting...",
-    listening: "Live — speak naturally",
+    listening: textOnly ? "Live — type your answers below" : "Live — speak or type",
     ended: "Call ended",
     error: "Could not connect",
   }[status];
@@ -190,12 +222,19 @@ export default function CallClient({ quoteId, joinToken }: Props) {
         <div className="flex flex-wrap gap-3">
           <button
             className="min-h-13 rounded-full bg-emerald-700 px-6 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={start}
+            onClick={() => void start()}
             disabled={status === "connecting" || status === "listening"}
           >
             {status === "ended" || status === "error"
               ? "Try again"
               : "Start call"}
+          </button>
+          <button
+            className="min-h-13 rounded-full bg-zinc-200 px-6 font-bold disabled:opacity-50"
+            onClick={() => void start(true)}
+            disabled={status === "connecting" || status === "listening"}
+          >
+            Start with typing
           </button>
           <button
             className="min-h-13 rounded-full bg-zinc-200 px-6 font-bold disabled:cursor-not-allowed disabled:opacity-50"
@@ -205,6 +244,41 @@ export default function CallClient({ quoteId, joinToken }: Props) {
             End call
           </button>
         </div>
+
+        <form
+          className="mt-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            sendTypedAnswer();
+          }}
+        >
+          <label htmlFor="buyer-answer" className="block font-semibold">
+            Or type your answer
+          </label>
+          <p id="answer-help" className="mt-1 text-sm text-zinc-600">
+            {status === "listening"
+              ? "Gemini will reply aloud and process this just like a spoken answer."
+              : "Start a call or choose Start with typing first."}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <input
+              id="buyer-answer"
+              aria-describedby="answer-help"
+              className="min-w-0 flex-1 rounded-xl border border-zinc-300 px-3 py-3 disabled:bg-zinc-100"
+              value={typedAnswer}
+              onChange={(event) => setTypedAnswer(event.target.value)}
+              placeholder="Actually, make that 75 pieces"
+              disabled={status !== "listening"}
+            />
+            <button
+              type="submit"
+              className="rounded-xl bg-emerald-700 px-5 font-bold text-white disabled:opacity-50"
+              disabled={status !== "listening" || !typedAnswer.trim()}
+            >
+              Send
+            </button>
+          </div>
+        </form>
 
         <div
           className="mt-6 min-h-40 max-h-64 overflow-auto whitespace-pre-wrap rounded-2xl bg-zinc-950 p-4 font-mono text-xs leading-6 text-emerald-200"
