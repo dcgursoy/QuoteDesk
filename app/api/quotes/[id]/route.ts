@@ -1,12 +1,12 @@
 // app/api/quotes/[id]/route.ts
-import { getQuote } from '@/lib/supabaseServer';
+import { getQuoteWithPriceRequests } from '@/lib/supabaseServer';
 
 // GET /api/quotes/:id
 // Returns the whole quote row as JSON.
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const row = await getQuote(id);
+  const row = await getQuoteWithPriceRequests(id);
   if (!row) {
     return Response.json({ error: 'Quote not found' }, { status: 404 });
   }

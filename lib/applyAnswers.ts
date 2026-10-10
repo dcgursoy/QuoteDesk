@@ -10,6 +10,22 @@ const allowed = {
 
 export function applyAnswers(original: QuoteRow, tool: string, args: Record<string, unknown>) {
   const row = structuredClone(original);
+  if (tool === 'note_price_request') {
+    if (typeof args.heard !== 'string' || !args.heard.trim() || args.heard.length > 1000) throw new Error('Provide the buyer price request (1–1000 characters)');
+    if (Object.keys(args).some(key => !['heard', 'requestedAmountCents', 'basis'].includes(key))) throw new Error('Invalid price request fields');
+    const hasAmount = args.requestedAmountCents !== undefined;
+    const hasBasis = args.basis !== undefined;
+    if (hasAmount !== hasBasis || (hasAmount && (!Number.isSafeInteger(args.requestedAmountCents) || (args.requestedAmountCents as number) <= 0 || !['total', 'per_part'].includes(String(args.basis))))) throw new Error('Provide a positive amount in USD cents and a total or per_part basis together');
+    const basis = hasBasis ? args.basis as 'total' | 'per_part' : null;
+    const amount = hasAmount ? args.requestedAmountCents as number : null;
+    const lowest = basis && row.options?.length ? Math.min(...row.options.map(option => basis === 'total' ? option.totalCents : option.unitCents)) : null;
+    const result: AnswerResult = {
+      accepted: {}, rejected: [], missing: row.missing, status: row.status, options: row.options,
+      priceRequest: { heard: args.heard.trim(), requestedAmountCents: amount, basis, lowestOfferedCents: lowest, belowLowest: amount !== null && lowest !== null ? amount < lowest : null, recordedAt: new Date().toISOString() },
+    };
+    // Persist the note through quote_events, leaving specs, prices and approval unchanged.
+    return { row, result, changed: false };
+  }
   const accepted: AnswerResult['accepted'] = {};
   const rejected: AnswerResult['rejected'] = [];
   const reject = (field: keyof typeof allowed, reason: string) => rejected.push({ field, reason, allowed: allowed[field] });

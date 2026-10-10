@@ -36,7 +36,7 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
       });
       const next = await response.json();
       if (!response.ok) throw new Error(next.error || "Approval failed");
-      setRow(current => next.version >= current.version ? next : current);
+      setRow(current => next.version >= current.version ? { ...next, priceRequests: next.priceRequests ?? current.priceRequests } : current);
     } catch (error) { setApprovalError(error instanceof Error ? error.message : "Approval failed"); }
     finally { setApproving(false); }
   }
@@ -46,7 +46,7 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
     let active = true;
     let loading = false;
     const accept = (next: QuoteRow) => {
-      if (active && next.id === id) setRow(current => next.version >= current.version ? next : current);
+      if (active && next.id === id) setRow(current => next.version >= current.version ? { ...next, priceRequests: next.priceRequests ?? current.priceRequests } : current);
     };
     async function load() {
       if (loading) return;
@@ -93,6 +93,15 @@ export default function QuoteWorkspace({ initialRow, cached, baseUrl }: {
           })}
         </section>
         <section className="panel"><div className="panel-heading"><h2>Price & delivery options</h2><span className="overline">03 / REVIEW</span></div>
+          {!!row.priceRequests?.length && <div className="panel-content notice" role="status">
+            <h3 className="font-semibold">Buyer requested a lower price — vendor review needed</h3>
+            <p className="field-help mt-2">These requests are not accepted discounts. Offered prices remain unchanged.</p>
+            {row.priceRequests.map((request, index) => <article className="mt-4" key={`${request.recordedAt}-${index}`}>
+              <p className="whitespace-pre-wrap break-words">“{request.heard}”</p>
+              {request.requestedAmountCents !== null && <p className="mt-1 text-sm">Requested: {money(request.requestedAmountCents)} {request.basis === 'per_part' ? 'per part' : 'total'}{request.lowestOfferedCents !== null && ` · Lowest offered at request: ${money(request.lowestOfferedCents)}`}</p>}
+              <p className="field-help mt-1">{request.belowLowest === true ? 'Below all offered options · ' : ''}For vendor review · {new Date(request.recordedAt).toLocaleString()}</p>
+            </article>)}
+          </div>}
           {row.options?.length ? <div className="price-grid">{row.options.map(option => <article className={`price-card ${option.id === "standard" ? "featured" : ""}`} key={option.id}><h3>{option.id}</h3><p className="price-total">{money(option.totalCents)}</p><p className="field-help">{money(option.unitCents)} / part</p><p className="mt-4 text-sm font-medium">{option.businessDays} business days</p></article>)}</div> : <div className="empty-state"><p className="font-medium text-[var(--foreground)]">Ready when the details are.</p><p>Pricing options will appear here after the buyer’s answers are validated and saved.</p></div>}
           <div className="panel-content border-t border-[var(--line)] field-help">{row.approved_at ? `Approved ${new Date(row.approved_at).toLocaleString()}` : "Prices are provisional until reviewed and approved by the estimator."}</div>
           {row.status === "quoted" && <div className="panel-content"><button className="primary-button" disabled={approving} onClick={() => void approve()}>{approving ? "Approving…" : "Approve quote"}</button></div>}

@@ -40,6 +40,25 @@ async function main() {
     const events = await db.from('quote_events').select('call_id').eq('quote_id', id);
     assert.equal(events.data?.length, 3);
     await post('answers', { ...body, callId: randomUUID(), args: { finish: 'AS_MACHINED', quantity: 0 } });
+    const beforePriceRequest = await db.from('quotes').select().eq('id', id).single();
+    const priceBody = { ...body, callId: randomUUID(), tool: 'note_price_request', args: { heard: 'Can you do $500 total?', requestedAmountCents: 50000, basis: 'total' } };
+    const priceRequest = await post('answers', priceBody);
+    assert.equal(priceRequest.priceRequest.belowLowest, true);
+    assert.deepEqual(await post('answers', priceBody), priceRequest);
+    const afterPriceRequest = await db.from('quotes').select().eq('id', id).single();
+    assert.deepEqual(afterPriceRequest.data, beforePriceRequest.data);
+    const quoteResponse = await fetch(`${base}/api/quotes/${id}`);
+    assert.equal(quoteResponse.status, 200);
+    const withRequests = await quoteResponse.json();
+    assert.equal(withRequests.priceRequests.length, 1);
+    assert.equal(withRequests.priceRequests[0].heard, 'Can you do $500 total?');
+    const pageResponse = await fetch(`${base}/q/${id}`);
+    assert.equal(pageResponse.status, 200);
+    const page = await pageResponse.text();
+    assert.match(page, /Buyer requested a lower price/);
+    assert.match(page, /Below all offered options/);
+    await post('answers', { ...priceBody, callId: randomUUID(), args: { heard: 'Please make it cheaper' } });
+    console.log('PASS: lower-price request stored in Supabase, read by estimator, duplicate safety, unchanged quote prices.');
     console.log('PASS: real Supabase save, denied bad token, duplicate-call safety, pricing, approval, correction, unsupported material, event history.');
   } finally {
     const events = await db.from('quote_events').delete().eq('quote_id', id);

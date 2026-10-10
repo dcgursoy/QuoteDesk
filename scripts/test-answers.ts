@@ -27,4 +27,18 @@ assert.throws(() => applyAnswers(original, 'record_answers', { lengthMm: 999 }))
 assert.throws(() => applyAnswers(original, 'unknown_tool', {}));
 const approved = { ...corrected.row, status: 'approved' as const, approved_at: new Date().toISOString() };
 assert.equal(applyAnswers(approved, 'record_answers', { quantity: 100 }).row.approved_at, null);
+const priceRequest = applyAnswers(complete.row, 'note_price_request', { heard: 'Can you do $500 total?', requestedAmountCents: 50000, basis: 'total' });
+assert.equal(priceRequest.result.priceRequest?.belowLowest, true);
+assert.equal(priceRequest.result.priceRequest?.lowestOfferedCents, 64485);
+assert.equal(priceRequest.changed, false);
+assert.deepEqual(priceRequest.row, complete.row);
+const perPart = applyAnswers(complete.row, 'note_price_request', { heard: 'Can you do $10 per part?', requestedAmountCents: 1000, basis: 'per_part' });
+assert.equal(perPart.result.priceRequest?.belowLowest, true);
+assert.equal(perPart.result.priceRequest?.lowestOfferedCents, complete.row.options![0].unitCents);
+assert.equal(applyAnswers(complete.row, 'note_price_request', { heard: 'Can you make it cheaper?' }).result.priceRequest?.requestedAmountCents, null);
+assert.equal(applyAnswers(original, 'note_price_request', { heard: '$100 total', requestedAmountCents: 10000, basis: 'total' }).result.priceRequest?.belowLowest, null);
+assert.equal(applyAnswers(complete.row, 'note_price_request', { heard: '$700 total', requestedAmountCents: 70000, basis: 'total' }).result.priceRequest?.belowLowest, false);
+assert.deepEqual(applyAnswers(approved, 'note_price_request', { heard: 'Please lower the price' }).row, approved);
+for (const args of [{ heard: '' }, { heard: 'lower', requestedAmountCents: -1, basis: 'total' }, { heard: 'lower', requestedAmountCents: 10.5, basis: 'total' }, { heard: 'lower', requestedAmountCents: 50000 }, { heard: 'lower', basis: 'per_part' }, { heard: 'lower', requestedAmountCents: 1, basis: 'unknown' }]) assert.throws(() => applyAnswers(complete.row, 'note_price_request', args));
+console.log('PASS: lower-price requests, total/per-part comparison, no guessed budgets, validation, unchanged prices/specs/approval.');
 console.log('PASS: partial answers, deterministic prices, corrections, unsupported materials, incompatible finishes, validation, approval invalidation.');
