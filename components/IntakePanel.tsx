@@ -20,6 +20,12 @@ function screenUrl(result: Result) {
   return '/q/' + result.id + (result.origin === 'saved' ? '?cached=1' : '');
 }
 
+// Turns a field name from the code into words a person would say.
+function plainName(field: string) {
+  if (field === 'materialGrade') return 'material grade';
+  return field; // quantity and finish already read fine
+}
+
 export default function IntakePanel() {
   const [emailText, setEmailText] = useState(DEMO_EMAIL);
   const [file, setFile] = useState<File | null>(null);
@@ -91,8 +97,9 @@ export default function IntakePanel() {
     <div className="mt-6 grid gap-6 md:grid-cols-2">
       <div>
         <label className="block text-sm font-medium" htmlFor="email">
-          Request email
+          Step 1. Email from the buyer
         </label>
+        <p className="text-sm text-zinc-500">The message a customer sent to the shop asking for a price.</p>
         <textarea
           id="email"
           className="mt-1 h-64 w-full rounded border border-zinc-300 bg-white p-3 font-mono text-sm text-black"
@@ -101,15 +108,19 @@ export default function IntakePanel() {
         />
 
         <label className="mt-4 block text-sm font-medium" htmlFor="pdf">
-          Drawing PDF
+          Step 2. Drawing the buyer attached
         </label>
         <input id="pdf" className="mt-1 block text-sm" type="file" accept="application/pdf" onChange={chooseFile} />
         <p className="mt-1 text-sm text-zinc-500">
           {file ? 'Using ' + file.name : 'No file chosen, so the demo drawing will be used.'}
         </p>
 
+        <p className="mt-4 text-sm font-medium">Step 3. Have Quote Desk read both</p>
+        <p className="text-sm text-zinc-500">
+          It pulls out the part details and lists anything the buyer forgot to say.
+        </p>
         <button
-          className="mt-4 rounded bg-blue-600 px-5 py-3 text-white disabled:opacity-50"
+          className="mt-2 rounded bg-blue-600 px-5 py-3 text-white disabled:opacity-50"
           disabled={busy}
           onClick={() => start(false)}
         >
@@ -136,7 +147,8 @@ export default function IntakePanel() {
               Quote created in {seconds.toFixed(1)} s
               {result.origin === 'saved' ? ' from the saved result' : ''}
             </p>
-            <p className="mt-1">Still missing {result.missing.join(', ')}</p>
+            <p className="mt-1">The buyer did not say the {result.missing.map(plainName).join(', ')}.</p>
+            <p className="mt-1">The voice call will ask the buyer for these.</p>
             <p className="mt-2 flex gap-4">
               <a className="underline" href={screenUrl(result)}>
                 Open the quote screen
@@ -150,7 +162,8 @@ export default function IntakePanel() {
       </div>
 
       <div>
-        <p className="text-sm font-medium">Drawing</p>
+        <p className="text-sm font-medium">Preview of the drawing from the buyer</p>
+        <p className="text-sm text-zinc-500">The same PDF from Step 2, shown so you can check it.</p>
         <object
           className="mt-1 h-[28rem] w-full rounded border border-zinc-300 bg-white"
           data={previewUrl + '#toolbar=0&view=FitH'}
